@@ -34,6 +34,7 @@ public class ReportApplication {
     private final HandlingCalculator handlingCalculator;
     private final CurrencyConverter currencyConverter;
     private final PromotionCalculator promotionCalculator;
+    private final OrderPricingCalculator orderPricingCalculator;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -83,28 +84,20 @@ public class ReportApplication {
             String promoCode = order.getPromoCode();
 
             double discountRate =
-                    promotionCalculator.calculateDiscountRate(
-                            promoCode,
-                            promotions
-                    );
+                    promotionCalculator.calculateDiscountRate(promoCode, promotions);
 
             double fixedDiscount =
-                    promotionCalculator.calculateFixedDiscount(
-                            promoCode,
-                            promotions
-                    );
+                    promotionCalculator.calculateFixedDiscount(promoCode, promotions);
 
             // Calcul ligne avec réduction promo
             int qty = order.getQuantity();
-            double lineTotal = qty * basePrice * (1 - discountRate) - fixedDiscount * qty;
+            double lineTotal =
+                    orderPricingCalculator.calculateLineTotal(qty, basePrice, discountRate, fixedDiscount);
 
             // Bonus matin (règle cachée basée sur heure)
-            String time = order.getTime();
-            int hour = Integer.parseInt(time.split(":")[0]);
-            double morningBonus = 0;
-            if (hour < 10) {
-                morningBonus = lineTotal * 0.03; // 3% réduction supplémentaire
-            }
+            double morningBonus =
+                    orderPricingCalculator.calculateMorningBonus(lineTotal, order.getTime());
+
             lineTotal = lineTotal - morningBonus;
 
             if (!totalsByCustomer.containsKey(cid)) {
@@ -169,21 +162,11 @@ public class ReportApplication {
             // Calcul taxe (gestion spéciale par produit)
             double taxable = sub - totalDiscount;
 
-            double tax = taxCalculator.calculate(
-                    sub,
-                    totalDiscount,
-                    items,
-                    products
-            );
+            double tax = taxCalculator.calculate(sub, totalDiscount, items, products);
 
             // Frais de port complexes (duplication)
             double weight = (Double) totals.get("weight");
-            double ship = shippingCalculator.calculate(
-                    sub,
-                    weight,
-                    zone,
-                    shippingZones
-            );
+            double ship = shippingCalculator.calculate(sub, weight, zone, shippingZones);
 
             // Frais de gestion (magic number + condition cachée)
             int itemCount = items.size();
