@@ -2,15 +2,16 @@ package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.*;
 import com.fred.orderreport.domain.model.result.DiscountResult;
+import com.fred.orderreport.domain.result.CustomerReportData;
 import com.fred.orderreport.domain.service.CurrencyConverter;
 import com.fred.orderreport.domain.service.calculator.*;
 import com.fred.orderreport.infrastructure.csv.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.fred.orderreport.infrastructure.export.JsonReportExporter;
+import com.fred.orderreport.infrastructure.export.JsonReportMapper;
+import com.fred.orderreport.infrastructure.formatter.ReportFormatter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.io.FileWriter;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -37,6 +38,11 @@ public class ReportApplication {
     private final CurrencyConverter currencyConverter;
     private final PromotionCalculator promotionCalculator;
     private final OrderPricingCalculator orderPricingCalculator;
+
+    private final ReportFormatter reportFormatter;
+
+    private final JsonReportMapper jsonReportMapper;
+    private final JsonReportExporter jsonReportExporter;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -122,8 +128,7 @@ public class ReportApplication {
         }
 
         // Génération rapport (mélange calculs + formatage + I/O)
-        List<String> outputLines = new ArrayList<>();
-        List<Map<String, Object>> jsonData = new ArrayList<>();
+        List<CustomerReportData> reportData = new ArrayList<>();
         double grandTotal = 0.0;
         double totalTaxCollected = 0.0;
 
@@ -177,50 +182,43 @@ public class ReportApplication {
             grandTotal += total;
             totalTaxCollected += tax * currencyRate;
 
-            // Formatage texte (dispersé, pas de méthode dédiée)
-            outputLines.add(String.format("Customer: %s (%s)", name, cid));
-            outputLines.add(String.format("Level: %s | Zone: %s | Currency: %s", level, zone, currency));
-            outputLines.add(String.format("Subtotal: %.2f", sub));
-            outputLines.add(String.format("Discount: %.2f", totalDiscount));
-            outputLines.add(String.format("  - Volume discount: %.2f", disc));
-            outputLines.add(String.format("  - Loyalty discount: %.2f", loyaltyDiscount));
             double morningBonus = (Double) totals.get("morning_bonus");
-            if (morningBonus > 0) {
-                outputLines.add(String.format("  - Morning bonus: %.2f", morningBonus));
-            }
-            outputLines.add(String.format("Tax: %.2f", tax * currencyRate));
-            outputLines.add(String.format("Shipping (%s, %.1fkg): %.2f", zone, weight, ship));
-            if (handling > 0) {
-                outputLines.add(String.format("Handling (%d items): %.2f", itemCount, handling));
-            }
-            outputLines.add(String.format("Total: %.2f %s", total, currency));
-            outputLines.add(String.format("Loyalty Points: %d", (int) Math.floor(pts)));
-            outputLines.add("");
 
-            // Export JSON en parallèle (side effect)
-            Map<String, Object> jsonEntry = new HashMap<>();
-            jsonEntry.put("customer_id", cid);
-            jsonEntry.put("name", name);
-            jsonEntry.put("total", total);
-            jsonEntry.put("currency", currency);
-            jsonEntry.put("loyalty_points", (int) Math.floor(pts));
-            jsonData.add(jsonEntry);
+            // Consolidation des données du rapport avant formatage/export
+            reportData.add(
+                    new CustomerReportData(
+                            cid,
+                            name,
+                            level,
+                            zone,
+                            currency,
+                            sub,
+                            totalDiscount,
+                            disc,
+                            loyaltyDiscount,
+                            morningBonus,
+                            tax * currencyRate,
+                            ship,
+                            weight,
+                            itemCount,
+                            handling,
+                            total,
+                            pts
+                    )
+            );
         }
 
-        outputLines.add(String.format("Grand Total: %.2f EUR", grandTotal));
-        outputLines.add(String.format("Total Tax Collected: %.2f EUR", totalTaxCollected));
+        // Formatage texte
+        List<String> outputLines = reportFormatter.format(reportData, grandTotal, totalTaxCollected);
 
         String result = String.join("\n", outputLines);
 
         // Side effects: print + file write
         System.out.println(result);
 
-        // Export JSON surprise
-        String outputPath = "target/output.json";
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        FileWriter writer = new FileWriter(outputPath);
-        gson.toJson(jsonData, writer);
-        writer.close();
+        // Export JSON
+        List<Map<String, Object>> jsonData = jsonReportMapper.map(reportData);
+        jsonReportExporter.export(jsonData, "target/output.json");
 
         return result;
     }
