@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Legacy ###
+# Generated legacy artifacts
+legacy/output.json
