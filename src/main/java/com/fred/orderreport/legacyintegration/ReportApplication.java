@@ -3,6 +3,7 @@ package com.fred.orderreport.legacyintegration;
 import com.fred.orderreport.domain.model.*;
 import com.fred.orderreport.domain.service.DiscountCalculator;
 import com.fred.orderreport.domain.service.LoyaltyCalculator;
+import com.fred.orderreport.domain.service.TaxCalculator;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -30,6 +31,7 @@ public class ReportApplication {
 
     private final LoyaltyCalculator loyaltyCalculator;
     private final DiscountCalculator discountCalculator;
+    private final TaxCalculator taxCalculator;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -166,35 +168,13 @@ public class ReportApplication {
 
             // Calcul taxe (gestion spéciale par produit)
             double taxable = sub - totalDiscount;
-            double tax = 0.0;
 
-            // Vérifier si tous produits taxables
-            boolean allTaxable = true;
-            for (Order item : items) {
-                Product prod = products.get(item.getProductId());
-
-                if (prod != null && !prod.isTaxable()) {
-                    allTaxable = false;
-                    break;
-                }
-            }
-
-            if (allTaxable) {
-                tax = Math.round(taxable * TAX * 100.0) / 100.0; // Arrondi 2 décimales
-            } else {
-                // Calcul taxe par ligne (plus complexe)
-                for (Order item : items) {
-                    Product prod = products.get(item.getProductId());
-
-                    if (prod != null && prod.isTaxable()) {
-                        double itemPrice = prod.getPrice();
-
-                        int itemQty = item.getQuantity();
-                        tax += itemQty * itemPrice * TAX;
-                    }
-                }
-                tax = Math.round(tax * 100.0) / 100.0;
-            }
+            double tax = taxCalculator.calculate(
+                    sub,
+                    totalDiscount,
+                    items,
+                    products
+            );
 
             // Frais de port complexes (duplication)
             double ship = 0.0;
