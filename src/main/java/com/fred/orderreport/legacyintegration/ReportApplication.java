@@ -1,6 +1,7 @@
 package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.*;
+import com.fred.orderreport.domain.service.DiscountCalculator;
 import com.fred.orderreport.domain.service.LoyaltyCalculator;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
@@ -10,8 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.FileWriter;
 import java.nio.file.Path;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 /**
@@ -30,6 +29,7 @@ public class ReportApplication {
     private final OrderCsvParser orderCsvParser;
 
     private final LoyaltyCalculator loyaltyCalculator;
+    private final DiscountCalculator discountCalculator;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -145,49 +145,13 @@ public class ReportApplication {
             double sub = (Double) totals.get("subtotal");
 
             // Remise par paliers (duplication + magic numbers)
-            double disc = 0.0;
-            if (sub > 50) {
-                disc = sub * 0.05;
-            }
-            if (sub > 100) {
-                disc = sub * 0.10; // écrase la précédente (bug intentionnel)
-            }
-            if (sub > 500) {
-                disc = sub * 0.15;
-            }
-            if (sub > 1000 && level.equals("PREMIUM")) {
-                disc = sub * 0.20;
-            }
-
-            // Bonus weekend (règle cachée basée sur date)
             List<Order> items = (List<Order>) totals.get("items");
-            String firstOrderDate = items.size() > 0 ? items.get(0).getDate() : "";
-            int dayOfWeek = 0;
-            if (!firstOrderDate.isEmpty()) {
-                try {
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                    Date date = sdf.parse(firstOrderDate);
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(date);
-                    dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
-                } catch (ParseException e) {
-                    // Ignore
-                }
-            }
-            // Calendar: 1=Sunday, 7=Saturday
-            if (dayOfWeek == 1 || dayOfWeek == 7) {
-                disc = disc * 1.05; // 5% bonus sur remise
-            }
+
+            double disc = discountCalculator.calculateVolumeDiscount(sub, level, items);
 
             // Calcul remise fidélité (duplication)
-            double loyaltyDiscount = 0.0;
             double pts = loyaltyPoints.getOrDefault(cid, 0.0);
-            if (pts > 100) {
-                loyaltyDiscount = Math.min(pts * 0.1, 50.0);
-            }
-            if (pts > 500) {
-                loyaltyDiscount = Math.min(pts * 0.15, 100.0); // écrase précédent
-            }
+            double loyaltyDiscount = discountCalculator.calculateLoyaltyDiscount(pts);
 
             // Plafond remise global (règle cachée)
             double totalDiscount = disc + loyaltyDiscount;
