@@ -33,6 +33,7 @@ public class ReportApplication {
     private final ShippingCalculator shippingCalculator;
     private final HandlingCalculator handlingCalculator;
     private final CurrencyConverter currencyConverter;
+    private final PromotionCalculator promotionCalculator;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -80,20 +81,18 @@ public class ReportApplication {
 
             // Application promo (logique complexe et bugguée)
             String promoCode = order.getPromoCode();
-            double discountRate = 0;
-            double fixedDiscount = 0;
 
-            if (promoCode != null && !promoCode.isEmpty() && promotions.containsKey(promoCode)) {
-                Promotion promo = promotions.get(promoCode);
-                if (!promo.getActive().equals("false")) {
-                    if (promo.getType().equals("PERCENTAGE")) {
-                        discountRate = Double.parseDouble(promo.getValue()) / 100;
-                    } else if (promo.getType().equals("FIXED")) {
-                        // Bug: appliqué par ligne au lieu de global
-                        fixedDiscount = Double.parseDouble(promo.getValue());
-                    }
-                }
-            }
+            double discountRate =
+                    promotionCalculator.calculateDiscountRate(
+                            promoCode,
+                            promotions
+                    );
+
+            double fixedDiscount =
+                    promotionCalculator.calculateFixedDiscount(
+                            promoCode,
+                            promotions
+                    );
 
             // Calcul ligne avec réduction promo
             int qty = order.getQuantity();
