@@ -1,16 +1,20 @@
 package com.fred.orderreport.goldenmaster;
 
 import com.fred.orderreport.legacyintegration.ReportApplication;
-import legacy.OrderReportLegacy;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@SpringBootTest
 class LegacyGoldenMasterTest {
+
+    @Autowired
+    private ReportApplication reportApplication;
 
     @Test
     void shouldMatchLegacyReport() throws Exception {
@@ -19,8 +23,7 @@ class LegacyGoldenMasterTest {
                 Path.of("legacy/expected/report.txt")
         );
 
-        // TODO inject new version output
-        String actual = ReportApplication.run();
+        String actual = reportApplication.run();
 
         assertEquals(expected, actual);
     }

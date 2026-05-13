@@ -1,19 +1,33 @@
 package com.fred.orderreport.legacyintegration;
 
-import java.io.*;
-import java.nio.file.*;
+import com.fred.orderreport.infrastructure.csv.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.nio.file.Path;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.*;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 /**
  * Legacy Order Report Generator
  * DO NOT USE IN PRODUCTION
  */
+@Service
+@RequiredArgsConstructor
 public class ReportApplication {
+
+    private final ProductCsvParser productCsvParser;
+    private final CustomerCsvParser customerCsvParser;
+    private final ShippingZoneCsvParser shippingZoneCsvParser;
+    private final PromotionCsvParser promotionCsvParser;
+    private final OrderCsvParser orderCsvParser;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -25,116 +39,32 @@ public class ReportApplication {
     public static final double MAX_DISCOUNT = 200;
 
     // Méthode principale qui fait TOUT (300+ lignes)
-    public static String run() throws Exception {
+    public String run() throws Exception {
         Path custPath = getResourcePath("data/customers.csv");
         Path ordPath = getResourcePath("data/orders.csv");
         Path prodPath = getResourcePath("data/products.csv");
         Path shipPath = getResourcePath("data/shipping_zones.csv");
         Path promoPath = getResourcePath("data/promotions.csv");
 
-        // Lecture customers (parsing mélangé avec logique)
-        Map<String, Map<String, String>> customers = new HashMap<>();
-        BufferedReader custReader = new BufferedReader(new FileReader(custPath.toFile()));
-        String line = custReader.readLine(); // skip header
-        while ((line = custReader.readLine()) != null) {
-            String[] parts = line.split(",");
-            Map<String, String> cust = new HashMap<>();
-            cust.put("id", parts[0]);
-            cust.put("name", parts[1]);
-            cust.put("level", parts.length > 2 ? parts[2] : "BASIC");
-            cust.put("shipping_zone", parts.length > 3 ? parts[3] : "ZONE1");
-            cust.put("currency", parts.length > 4 ? parts[4] : "EUR");
-            customers.put(parts[0], cust);
-        }
-        custReader.close();
+        // Lecture customers
+        Map<String, Map<String, String>> customers =
+                customerCsvParser.parse(custPath);
 
-        // Lecture products (duplication parsing, méthode différente)
-        Map<String, Map<String, Object>> products = new HashMap<>();
-        List<String> prodLines = Files.readAllLines(prodPath);
-        for (int i = 1; i < prodLines.size(); i++) {
-            try {
-                String[] parts = prodLines.get(i).split(",");
-                Map<String, Object> prod = new HashMap<>();
-                prod.put("id", parts[0]);
-                prod.put("name", parts[1]);
-                prod.put("category", parts[2]);
-                prod.put("price", Double.parseDouble(parts[3]));
-                prod.put("weight", parts.length > 4 ? Double.parseDouble(parts[4]) : 1.0);
-                prod.put("taxable", parts.length > 5 ? parts[5].equals("true") : true);
-                products.put(parts[0], prod);
-            } catch (Exception e) {
-                // Skip silencieux
-                continue;
-            }
-        }
+        // Lecture products
+        Map<String, Map<String, Object>> products =
+                productCsvParser.parse(prodPath);
 
-        // Lecture shipping zones (encore une autre variation avec Scanner)
-        Map<String, Map<String, Double>> shippingZones = new HashMap<>();
-        Scanner shipScanner =new Scanner(shipPath.toFile());
-        if (shipScanner.hasNextLine()) {
-            shipScanner.nextLine(); // skip header
-        }
-        while (shipScanner.hasNextLine()) {
-            String ln = shipScanner.nextLine();
-            String[] p = ln.split(",");
-            Map<String, Double> zone = new HashMap<>();
-            zone.put("base", Double.parseDouble(p[1]));
-            zone.put("per_kg", p.length > 2 ? Double.parseDouble(p[2]) : 0.5);
-            shippingZones.put(p[0], zone);
-        }
-        shipScanner.close();
+        // Lecture shipping zones
+        Map<String, Map<String, Double>> shippingZones =
+                shippingZoneCsvParser.parse(shipPath);
 
-        // Lecture promotions (parsing avec try-catch global)
-        Map<String, Map<String, String>> promotions = new HashMap<>();
-        try {
-            BufferedReader promoReader = new BufferedReader(new FileReader(promoPath.toFile()));
-            promoReader.readLine(); // header
-            String promoLine;
-            while ((promoLine = promoReader.readLine()) != null) {
-                String[] p = promoLine.split(",");
-                Map<String, String> promo = new HashMap<>();
-                promo.put("code", p[0]);
-                promo.put("type", p[1]);
-                promo.put("value", p[2]);
-                promo.put("active", p.length > 3 ? p[3] : "true");
-                promotions.put(p[0], promo);
-            }
-            promoReader.close();
-        } catch (FileNotFoundException e) {
-            // Ignore si fichier promo absent
-        }
+        // Lecture promotions
+        Map<String, Map<String, String>> promotions =
+                promotionCsvParser.parse(promoPath);
 
         // Lecture orders (mélange parsing et validation)
-        List<Map<String, Object>> orders = new ArrayList<>();
-        BufferedReader ordReader = new BufferedReader(new FileReader(ordPath.toFile()));
-        ordReader.readLine(); // skip header
-        String ordLine;
-        while ((ordLine = ordReader.readLine()) != null) {
-            try {
-                String[] parts = ordLine.split(",");
-                int qty = Integer.parseInt(parts[3]);
-                double price = Double.parseDouble(parts[4]);
-
-                if (qty <= 0 || price < 0) {
-                    continue; // validation silencieuse
-                }
-
-                Map<String, Object> order = new HashMap<>();
-                order.put("id", parts[0]);
-                order.put("customer_id", parts[1]);
-                order.put("product_id", parts[2]);
-                order.put("qty", qty);
-                order.put("unit_price", price);
-                order.put("date", parts.length > 5 ? parts[5] : "");
-                order.put("promo_code", parts.length > 6 ? parts[6] : "");
-                order.put("time", parts.length > 7 ? parts[7] : "12:00");
-                orders.add(order);
-            } catch (Exception e) {
-                // Skip silencieux
-                continue;
-            }
-        }
-        ordReader.close();
+        List<Map<String, Object>> orders =
+                orderCsvParser.parse(ordPath);
 
         // Calcul points de fidélité (première duplication)
         Map<String, Double> loyaltyPoints = new HashMap<>();
@@ -414,17 +344,7 @@ public class ReportApplication {
         return result;
     }
 
-   /* // Point d'entrée
-    public static void main(String[] args) {
-        try {
-            run();
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }*/
-
-    private static Path getResourcePath(String resourceName) throws Exception {
+    private Path getResourcePath(String resourceName) throws Exception {
         return Path.of(
                 Objects.requireNonNull(
                         ReportApplication.class
