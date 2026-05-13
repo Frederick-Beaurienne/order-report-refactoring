@@ -1,14 +1,12 @@
 package com.fred.orderreport.legacyintegration;
 
+import com.fred.orderreport.domain.model.Product;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.nio.file.Path;
 import java.text.ParseException;
@@ -51,7 +49,7 @@ public class ReportApplication {
                 customerCsvParser.parse(custPath);
 
         // Lecture products
-        Map<String, Map<String, Object>> products =
+        Map<String, Product> products =
                 productCsvParser.parse(prodPath);
 
         // Lecture shipping zones
@@ -68,26 +66,27 @@ public class ReportApplication {
 
         // Calcul points de fidélité (première duplication)
         Map<String, Double> loyaltyPoints = new HashMap<>();
-        for (Map<String, Object> o : orders) {
-            String cid = (String) o.get("customer_id");
+        for (Map<String, Object> order : orders) {
+            String cid = (String) order.get("customer_id");
             loyaltyPoints.putIfAbsent(cid, 0.0);
-            int qty = (Integer) o.get("qty");
-            double unitPrice = (Double) o.get("unit_price");
+            int qty = (Integer) order.get("qty");
+            double unitPrice = (Double) order.get("unit_price");
             loyaltyPoints.put(cid, loyaltyPoints.get(cid) + qty * unitPrice * LOYALTY_RATIO);
         }
 
         // Groupement par client (logique métier mélangée avec aggregation)
         Map<String, Map<String, Object>> totalsByCustomer = new HashMap<>();
-        for (Map<String, Object> o : orders) {
-            String cid = (String) o.get("customer_id");
+        for (Map<String, Object> order : orders) {
+            String cid = (String) order.get("customer_id");
 
             // Récupération produit avec fallback
-            Map<String, Object> prod = products.getOrDefault(o.get("product_id"), new HashMap<>());
-            double basePrice = prod.containsKey("price") ?
-                    (Double) prod.get("price") : (Double) o.get("unit_price");
+            Product prod = products.get(order.get("product_id"));
+            double basePrice = prod != null
+                    ? prod.getPrice()
+                    : (Double) order.get("unit_price");
 
             // Application promo (logique complexe et bugguée)
-            String promoCode = (String) o.get("promo_code");
+            String promoCode = (String) order.get("promo_code");
             double discountRate = 0;
             double fixedDiscount = 0;
 
@@ -104,11 +103,11 @@ public class ReportApplication {
             }
 
             // Calcul ligne avec réduction promo
-            int qty = (Integer) o.get("qty");
+            int qty = (Integer) order.get("qty");
             double lineTotal = qty * basePrice * (1 - discountRate) - fixedDiscount * qty;
 
             // Bonus matin (règle cachée basée sur heure)
-            String time = (String) o.get("time");
+            String time = (String) order.get("time");
             int hour = Integer.parseInt(time.split(":")[0]);
             double morningBonus = 0;
             if (hour < 10) {
@@ -128,9 +127,11 @@ public class ReportApplication {
 
             Map<String, Object> totals = totalsByCustomer.get(cid);
             totals.put("subtotal", (Double) totals.get("subtotal") + lineTotal);
-            double weight = prod.containsKey("weight") ? (Double) prod.get("weight") : 1.0;
+            double weight = prod != null
+                    ? prod.getWeight()
+                    : 1.0;
             totals.put("weight", (Double) totals.get("weight") + weight * qty);
-            ((List<Map<String, Object>>) totals.get("items")).add(o);
+            ((List<Map<String, Object>>) totals.get("items")).add(order);
             totals.put("morning_bonus", (Double) totals.get("morning_bonus") + morningBonus);
         }
 
@@ -217,9 +218,9 @@ public class ReportApplication {
             // Vérifier si tous produits taxables
             boolean allTaxable = true;
             for (Map<String, Object> item : items) {
-                Map<String, Object> prod = products.get(item.get("product_id"));
-                if (prod != null && prod.containsKey("taxable") &&
-                        !(Boolean) prod.get("taxable")) {
+                Product prod = products.get(item.get("product_id"));
+
+                if (prod != null && !prod.isTaxable()) {
                     allTaxable = false;
                     break;
                 }
@@ -230,11 +231,11 @@ public class ReportApplication {
             } else {
                 // Calcul taxe par ligne (plus complexe)
                 for (Map<String, Object> item : items) {
-                    Map<String, Object> prod = products.get(item.get("product_id"));
-                    if (prod != null &&
-                            (!(prod.containsKey("taxable")) || (Boolean) prod.get("taxable"))) {
-                        double itemPrice = prod.containsKey("price") ?
-                                (Double) prod.get("price") : (Double) item.get("unit_price");
+                    Product prod = products.get(item.get("product_id"));
+
+                    if (prod != null && prod.isTaxable()) {
+                        double itemPrice = prod.getPrice();
+
                         int itemQty = (Integer) item.get("qty");
                         tax += itemQty * itemPrice * TAX;
                     }

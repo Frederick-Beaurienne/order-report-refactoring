@@ -1,5 +1,6 @@
 package com.fred.orderreport.infrastructure.csv;
 
+import com.fred.orderreport.domain.model.Product;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,23 +19,25 @@ public class ProductCsvParser {
 
     private final CsvFileReader csvFileReader;
 
-    public Map<String, Map<String, Object>> parse(Path productPath) throws IOException {
+    public Map<String, Product> parse(Path productPath) throws IOException {
 
         List<String> lines  = csvFileReader.readDataLines(productPath);
 
-        Map<String, Map<String, Object>> products = new HashMap<>();
+        Map<String, Product> products = new HashMap<>();
 
         for (String line : lines) {
             try {
                 String[] parts = line.split(",");
-                Map<String, Object> prod = new HashMap<>();
-                prod.put("id", parts[0]);
-                prod.put("name", parts[1]);
-                prod.put("category", parts[2]);
-                prod.put("price", Double.parseDouble(parts[3]));
-                prod.put("weight", parts.length > 4 ? Double.parseDouble(parts[4]) : 1.0);
-                prod.put("taxable", parts.length > 5 ? parts[5].equals("true") : true);
-                products.put(parts[0], prod);
+                Product product = new Product(
+                        parts[0],
+                        parts[1],
+                        parts[2],
+                        Double.parseDouble(parts[3]),
+                        parts.length > 4 ? Double.parseDouble(parts[4]) : 1.0,
+                        parts.length > 5 ? parts[5].equals("true") : true
+                );
+
+                products.put(parts[0], product);
             } catch (Exception e) {
                 // Legacy behavior: invalid product lines are ignored
             }
