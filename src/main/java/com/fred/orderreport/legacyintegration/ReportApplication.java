@@ -1,6 +1,7 @@
 package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.*;
+import com.fred.orderreport.domain.service.LoyaltyCalculator;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -21,11 +22,14 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ReportApplication {
 
+    // ---------- SERVICE INJECTION ---------- //
     private final ProductCsvParser productCsvParser;
     private final CustomerCsvParser customerCsvParser;
     private final ShippingZoneCsvParser shippingZoneCsvParser;
     private final PromotionCsvParser promotionCsvParser;
     private final OrderCsvParser orderCsvParser;
+
+    private final LoyaltyCalculator loyaltyCalculator;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -59,15 +63,8 @@ public class ReportApplication {
         // Lecture orders
         List<Order> orders = orderCsvParser.parse(ordPath);
 
-        // Calcul points de fidélité (première duplication)
-        Map<String, Double> loyaltyPoints = new HashMap<>();
-        for (Order order : orders) {
-            String cid = order.getCustomerId();
-            loyaltyPoints.putIfAbsent(cid, 0.0);
-            int qty = order.getQuantity();
-            double unitPrice = order.getUnitPrice();
-            loyaltyPoints.put(cid, loyaltyPoints.get(cid) + qty * unitPrice * LOYALTY_RATIO);
-        }
+        // Calcul points de fidélité
+        Map<String, Double> loyaltyPoints = loyaltyCalculator.calculate(orders);
 
         // Groupement par client (logique métier mélangée avec aggregation)
         Map<String, Map<String, Object>> totalsByCustomer = new HashMap<>();
