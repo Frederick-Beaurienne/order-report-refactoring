@@ -3,6 +3,7 @@ package com.fred.orderreport.legacyintegration;
 import com.fred.orderreport.domain.model.*;
 import com.fred.orderreport.domain.service.DiscountCalculator;
 import com.fred.orderreport.domain.service.LoyaltyCalculator;
+import com.fred.orderreport.domain.service.ShippingCalculator;
 import com.fred.orderreport.domain.service.TaxCalculator;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
@@ -32,6 +33,7 @@ public class ReportApplication {
     private final LoyaltyCalculator loyaltyCalculator;
     private final DiscountCalculator discountCalculator;
     private final TaxCalculator taxCalculator;
+    private final ShippingCalculator shippingCalculator;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -177,33 +179,13 @@ public class ReportApplication {
             );
 
             // Frais de port complexes (duplication)
-            double ship = 0.0;
             double weight = (Double) totals.get("weight");
-
-            if (sub < SHIPPING_LIMIT) {
-                ShippingZone shipZone =
-                        shippingZones.getOrDefault(zone, new ShippingZone(5.0, 0.5));
-                double baseShip = shipZone.getBase();
-
-                if (weight > 10) {
-                    ship = baseShip + (weight - 10) * shipZone.getPerKg();
-                } else if (weight > 5) {
-                    // Palier intermédiaire (règle cachée)
-                    ship = baseShip + (weight - 5) * 0.3;
-                } else {
-                    ship = baseShip;
-                }
-
-                // Majoration zones éloignées
-                if (zone.equals("ZONE3") || zone.equals("ZONE4")) {
-                    ship = ship * 1.2;
-                }
-            } else {
-                // Livraison gratuite mais frais manutention poids élevé
-                if (weight > 20) {
-                    ship = (weight - 20) * 0.25;
-                }
-            }
+            double ship = shippingCalculator.calculate(
+                    sub,
+                    weight,
+                    zone,
+                    shippingZones
+            );
 
             // Frais de gestion (magic number + condition cachée)
             double handling = 0.0;
