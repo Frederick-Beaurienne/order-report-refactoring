@@ -73,12 +73,13 @@ public class Customer {
 
     @Override
     public String toString() {
-        return "Customer{" +
-                "id='" + id + '\'' +
-                ", name='" + name + '\'' +
-                ", level='" + level + '\'' +
-                ", shippingZone='" + shippingZone + '\'' +
-                ", currency='" + currency + '\'' +
-                '}';
+        final StringBuilder sb = new StringBuilder("Customer{");
+        sb.append("id='").append(id).append('\'');
+        sb.append(", name='").append(name).append('\'');
+        sb.append(", level='").append(level).append('\'');
+        sb.append(", shippingZone='").append(shippingZone).append('\'');
+        sb.append(", currency='").append(currency).append('\'');
+        sb.append('}');
+        return sb.toString();
     }
 }

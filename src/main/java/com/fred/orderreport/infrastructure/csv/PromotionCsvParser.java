@@ -1,5 +1,6 @@
 package com.fred.orderreport.infrastructure.csv;
 
+import com.fred.orderreport.domain.model.Promotion;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,9 +20,9 @@ public class PromotionCsvParser {
 
     private final CsvFileReader csvFileReader;
 
-    public Map<String, Map<String, String>> parse(Path promotionPath) throws IOException {
+    public Map<String, Promotion> parse(Path promotionPath) throws IOException {
 
-        Map<String, Map<String, String>> promotions = new HashMap<>();
+        Map<String, Promotion> promotions = new HashMap<>();
 
         try {
 
@@ -33,12 +34,12 @@ public class PromotionCsvParser {
 
                     String[] parts = line.split(",");
 
-                    Map<String, String> promotion = new HashMap<>();
-
-                    promotion.put("code", parts[0]);
-                    promotion.put("type", parts[1]);
-                    promotion.put("value", parts[2]);
-                    promotion.put("active", parts.length > 3 ? parts[3] : "true");
+                    Promotion promotion = new Promotion(
+                            parts[0],
+                            parts[1],
+                            parts[2],
+                            parts.length > 3 ? parts[3] : "true"
+                    );
 
                     promotions.put(parts[0], promotion);
 

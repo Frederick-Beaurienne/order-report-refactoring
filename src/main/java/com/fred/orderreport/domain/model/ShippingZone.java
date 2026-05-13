@@ -35,9 +35,10 @@ public class ShippingZone {
 
     @Override
     public String toString() {
-        return "ShippingZone{" +
-                "base=" + base +
-                ", perKg=" + perKg +
-                '}';
+        final StringBuilder sb = new StringBuilder("ShippingZone{");
+        sb.append("base=").append(base);
+        sb.append(", perKg=").append(perKg);
+        sb.append('}');
+        return sb.toString();
     }
 }

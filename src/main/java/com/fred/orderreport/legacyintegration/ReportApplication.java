@@ -2,6 +2,7 @@ package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.Customer;
 import com.fred.orderreport.domain.model.Product;
+import com.fred.orderreport.domain.model.Promotion;
 import com.fred.orderreport.domain.model.ShippingZone;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
@@ -56,7 +57,7 @@ public class ReportApplication {
         Map<String, ShippingZone> shippingZones = shippingZoneCsvParser.parse(shipPath);
 
         // Lecture promotions
-        Map<String, Map<String, String>> promotions = promotionCsvParser.parse(promoPath);
+        Map<String, Promotion> promotions = promotionCsvParser.parse(promoPath);
 
         // Lecture orders
         List<Map<String, Object>> orders = orderCsvParser.parse(ordPath);
@@ -86,13 +87,13 @@ public class ReportApplication {
             double fixedDiscount = 0;
 
             if (promoCode != null && !promoCode.isEmpty() && promotions.containsKey(promoCode)) {
-                Map<String, String> promo = promotions.get(promoCode);
-                if (!promo.get("active").equals("false")) {
-                    if (promo.get("type").equals("PERCENTAGE")) {
-                        discountRate = Double.parseDouble(promo.get("value")) / 100;
-                    } else if (promo.get("type").equals("FIXED")) {
+                Promotion promo = promotions.get(promoCode);
+                if (!promo.getActive().equals("false")) {
+                    if (promo.getType().equals("PERCENTAGE")) {
+                        discountRate = Double.parseDouble(promo.getValue()) / 100;
+                    } else if (promo.getType().equals("FIXED")) {
                         // Bug: appliqué par ligne au lieu de global
-                        fixedDiscount = Double.parseDouble(promo.get("value"));
+                        fixedDiscount = Double.parseDouble(promo.getValue());
                     }
                 }
             }

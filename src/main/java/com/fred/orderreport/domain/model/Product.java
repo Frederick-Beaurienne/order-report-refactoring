@@ -85,13 +85,14 @@ public class Product {
 
     @Override
     public String toString() {
-        return "Product{" +
-                "id='" + id + '\'' +
-                ", name='" + name + '\'' +
-                ", category='" + category + '\'' +
-                ", price=" + price +
-                ", weight=" + weight +
-                ", taxable=" + taxable +
-                '}';
+        final StringBuilder sb = new StringBuilder("Product{");
+        sb.append("id='").append(id).append('\'');
+        sb.append(", name='").append(name).append('\'');
+        sb.append(", category='").append(category).append('\'');
+        sb.append(", price=").append(price);
+        sb.append(", weight=").append(weight);
+        sb.append(", taxable=").append(taxable);
+        sb.append('}');
+        return sb.toString();
     }
 }
