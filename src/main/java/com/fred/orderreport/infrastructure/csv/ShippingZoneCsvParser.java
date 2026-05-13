@@ -1,5 +1,6 @@
 package com.fred.orderreport.infrastructure.csv;
 
+import com.fred.orderreport.domain.model.ShippingZone;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,9 +19,9 @@ public class ShippingZoneCsvParser {
 
     private final CsvFileReader csvFileReader;
 
-    public Map<String, Map<String, Double>> parse(Path shippingZonePath) throws IOException {
+    public Map<String, ShippingZone> parse(Path shippingZonePath) throws IOException {
 
-        Map<String, Map<String, Double>> shippingZones = new HashMap<>();
+        Map<String, ShippingZone> shippingZones = new HashMap<>();
 
         List<String> lines  = csvFileReader.readDataLines(shippingZonePath);
 
@@ -30,10 +31,10 @@ public class ShippingZoneCsvParser {
 
                 String[] parts = line.split(",");
 
-                Map<String, Double> zone = new HashMap<>();
-
-                zone.put("base", Double.parseDouble(parts[1]));
-                zone.put("per_kg", parts.length > 2 ? Double.parseDouble(parts[2]) : 0.5);
+                ShippingZone zone = new ShippingZone(
+                        Double.parseDouble(parts[1]),
+                        parts.length > 2 ? Double.parseDouble(parts[2]) : 0.5
+                );
 
                 shippingZones.put(parts[0], zone);
 

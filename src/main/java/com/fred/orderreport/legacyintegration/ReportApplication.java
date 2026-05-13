@@ -2,6 +2,7 @@ package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.Customer;
 import com.fred.orderreport.domain.model.Product;
+import com.fred.orderreport.domain.model.ShippingZone;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -46,24 +47,19 @@ public class ReportApplication {
         Path promoPath = getResourcePath("data/promotions.csv");
 
         // Lecture customers
-        Map<String, Customer> customers =
-                customerCsvParser.parse(custPath);
+        Map<String, Customer> customers = customerCsvParser.parse(custPath);
 
         // Lecture products
-        Map<String, Product> products =
-                productCsvParser.parse(prodPath);
+        Map<String, Product> products = productCsvParser.parse(prodPath);
 
         // Lecture shipping zones
-        Map<String, Map<String, Double>> shippingZones =
-                shippingZoneCsvParser.parse(shipPath);
+        Map<String, ShippingZone> shippingZones = shippingZoneCsvParser.parse(shipPath);
 
         // Lecture promotions
-        Map<String, Map<String, String>> promotions =
-                promotionCsvParser.parse(promoPath);
+        Map<String, Map<String, String>> promotions = promotionCsvParser.parse(promoPath);
 
-        // Lecture orders (mélange parsing et validation)
-        List<Map<String, Object>> orders =
-                orderCsvParser.parse(ordPath);
+        // Lecture orders
+        List<Map<String, Object>> orders = orderCsvParser.parse(ordPath);
 
         // Calcul points de fidélité (première duplication)
         Map<String, Double> loyaltyPoints = new HashMap<>();
@@ -246,15 +242,12 @@ public class ReportApplication {
             double weight = (Double) totals.get("weight");
 
             if (sub < SHIPPING_LIMIT) {
-                Map<String, Double> shipZone = shippingZones.getOrDefault(zone,
-                        new HashMap<String, Double>() {{
-                            put("base", 5.0);
-                            put("per_kg", 0.5);
-                        }});
-                double baseShip = shipZone.get("base");
+                ShippingZone shipZone =
+                        shippingZones.getOrDefault(zone, new ShippingZone(5.0, 0.5));
+                double baseShip = shipZone.getBase();
 
                 if (weight > 10) {
-                    ship = baseShip + (weight - 10) * shipZone.get("per_kg");
+                    ship = baseShip + (weight - 10) * shipZone.getPerKg();
                 } else if (weight > 5) {
                     // Palier intermédiaire (règle cachée)
                     ship = baseShip + (weight - 5) * 0.3;
