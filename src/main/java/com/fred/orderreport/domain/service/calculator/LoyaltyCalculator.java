@@ -1,4 +1,4 @@
-package com.fred.orderreport.domain.service;
+package com.fred.orderreport.domain.service.calculator;
 
 import com.fred.orderreport.domain.model.Order;
 import org.springframework.stereotype.Service;

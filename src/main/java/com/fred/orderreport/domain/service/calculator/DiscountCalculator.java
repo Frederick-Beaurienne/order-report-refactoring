@@ -1,5 +1,6 @@
-package com.fred.orderreport.domain.service;
+package com.fred.orderreport.domain.service.calculator;
 
+import com.fred.orderreport.domain.model.result.DiscountResult;
 import com.fred.orderreport.domain.model.Order;
 import org.springframework.stereotype.Service;
 
@@ -64,6 +65,37 @@ public class DiscountCalculator {
         }
 
         return loyaltyDiscount;
+    }
+
+    public DiscountResult applyDiscountCap(double volumeDiscount,
+                                           double loyaltyDiscount) {
+
+        double totalDiscount =
+                volumeDiscount + loyaltyDiscount;
+
+        if (totalDiscount > 200) {
+
+            // Legacy behavior:
+            // proportional discount adjustment
+            double ratio =
+                    totalDiscount > 0
+                            ? 200 / totalDiscount
+                            : 1;
+
+            volumeDiscount =
+                    volumeDiscount * ratio;
+
+            loyaltyDiscount =
+                    loyaltyDiscount * ratio;
+
+            totalDiscount = 200;
+        }
+
+        return new DiscountResult(
+                volumeDiscount,
+                loyaltyDiscount,
+                totalDiscount
+        );
     }
 
     private int extractDayOfWeek(List<Order> items) {

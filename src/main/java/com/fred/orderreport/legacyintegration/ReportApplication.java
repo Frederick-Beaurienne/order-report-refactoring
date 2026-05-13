@@ -1,7 +1,9 @@
 package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.*;
-import com.fred.orderreport.domain.service.*;
+import com.fred.orderreport.domain.model.result.DiscountResult;
+import com.fred.orderreport.domain.service.CurrencyConverter;
+import com.fred.orderreport.domain.service.calculator.*;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -149,15 +151,10 @@ public class ReportApplication {
             double loyaltyDiscount = discountCalculator.calculateLoyaltyDiscount(pts);
 
             // Plafond remise global (règle cachée)
-            double totalDiscount = disc + loyaltyDiscount;
-            if (totalDiscount > MAX_DISCOUNT) {
-                totalDiscount = MAX_DISCOUNT;
-                // Ajustement proportionnel (logique complexe)
-                double ratio = (disc + loyaltyDiscount) > 0 ?
-                        MAX_DISCOUNT / (disc + loyaltyDiscount) : 1;
-                disc = disc * ratio;
-                loyaltyDiscount = loyaltyDiscount * ratio;
-            }
+            DiscountResult discountResult = discountCalculator.applyDiscountCap(disc, loyaltyDiscount);
+            disc = discountResult.getVolumeDiscount();
+            loyaltyDiscount = discountResult.getLoyaltyDiscount();
+            double totalDiscount = discountResult.getTotalDiscount();
 
             // Calcul taxe (gestion spéciale par produit)
             double taxable = sub - totalDiscount;
