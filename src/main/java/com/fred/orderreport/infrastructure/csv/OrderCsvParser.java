@@ -1,5 +1,6 @@
 package com.fred.orderreport.infrastructure.csv;
 
+import com.fred.orderreport.domain.model.Order;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,9 +20,9 @@ public class OrderCsvParser {
 
     private final CsvFileReader csvFileReader;
 
-    public List<Map<String, Object>> parse(Path orderPath) throws IOException {
+    public List<Order> parse(Path orderPath) throws IOException {
 
-        List<Map<String, Object>> orders = new ArrayList<>();
+        List<Order> orders = new ArrayList<>();
 
         List<String> lines  = csvFileReader.readDataLines(orderPath);
 
@@ -38,16 +39,16 @@ public class OrderCsvParser {
                     continue; // legacy validation behavior
                 }
 
-                Map<String, Object> order = new HashMap<>();
-
-                order.put("id", parts[0]);
-                order.put("customer_id", parts[1]);
-                order.put("product_id", parts[2]);
-                order.put("qty", qty);
-                order.put("unit_price", price);
-                order.put("date", parts.length > 5 ? parts[5] : "");
-                order.put("promo_code", parts.length > 6 ? parts[6] : "");
-                order.put("time", parts.length > 7 ? parts[7] : "12:00");
+                Order order = new Order(
+                        parts[0],
+                        parts[1],
+                        parts[2],
+                        qty,
+                        price,
+                        parts.length > 5 ? parts[5] : "",
+                        parts.length > 6 ? parts[6] : "",
+                        parts.length > 7 ? parts[7] : "12:00"
+                );
 
                 orders.add(order);
 

@@ -1,9 +1,6 @@
 package com.fred.orderreport.legacyintegration;
 
-import com.fred.orderreport.domain.model.Customer;
-import com.fred.orderreport.domain.model.Product;
-import com.fred.orderreport.domain.model.Promotion;
-import com.fred.orderreport.domain.model.ShippingZone;
+import com.fred.orderreport.domain.model.*;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -60,29 +57,29 @@ public class ReportApplication {
         Map<String, Promotion> promotions = promotionCsvParser.parse(promoPath);
 
         // Lecture orders
-        List<Map<String, Object>> orders = orderCsvParser.parse(ordPath);
+        List<Order> orders = orderCsvParser.parse(ordPath);
 
         // Calcul points de fidélité (première duplication)
         Map<String, Double> loyaltyPoints = new HashMap<>();
-        for (Map<String, Object> order : orders) {
-            String cid = (String) order.get("customer_id");
+        for (Order order : orders) {
+            String cid = order.getCustomerId();
             loyaltyPoints.putIfAbsent(cid, 0.0);
-            int qty = (Integer) order.get("qty");
-            double unitPrice = (Double) order.get("unit_price");
+            int qty = order.getQuantity();
+            double unitPrice = order.getUnitPrice();
             loyaltyPoints.put(cid, loyaltyPoints.get(cid) + qty * unitPrice * LOYALTY_RATIO);
         }
 
         // Groupement par client (logique métier mélangée avec aggregation)
         Map<String, Map<String, Object>> totalsByCustomer = new HashMap<>();
-        for (Map<String, Object> order : orders) {
-            String cid = (String) order.get("customer_id");
+        for (Order order : orders) {
+            String cid = order.getCustomerId();
 
             // Récupération produit avec fallback
-            Product prod = products.get(order.get("product_id"));
-            double basePrice = prod != null ? prod.getPrice() : (Double) order.get("unit_price");
+            Product prod = products.get(order.getProductId());
+            double basePrice = prod != null ? prod.getPrice() : order.getUnitPrice();
 
             // Application promo (logique complexe et bugguée)
-            String promoCode = (String) order.get("promo_code");
+            String promoCode = order.getPromoCode();
             double discountRate = 0;
             double fixedDiscount = 0;
 
@@ -99,11 +96,11 @@ public class ReportApplication {
             }
 
             // Calcul ligne avec réduction promo
-            int qty = (Integer) order.get("qty");
+            int qty = order.getQuantity();
             double lineTotal = qty * basePrice * (1 - discountRate) - fixedDiscount * qty;
 
             // Bonus matin (règle cachée basée sur heure)
-            String time = (String) order.get("time");
+            String time = order.getTime();
             int hour = Integer.parseInt(time.split(":")[0]);
             double morningBonus = 0;
             if (hour < 10) {
@@ -114,7 +111,7 @@ public class ReportApplication {
             if (!totalsByCustomer.containsKey(cid)) {
                 Map<String, Object> totals = new HashMap<>();
                 totals.put("subtotal", 0.0);
-                totals.put("items", new ArrayList<Map<String, Object>>());
+                totals.put("items", new ArrayList<Order>());
                 totals.put("weight", 0.0);
                 totals.put("promo_discount", 0.0);
                 totals.put("morning_bonus", 0.0);
@@ -126,7 +123,7 @@ public class ReportApplication {
             double weight = prod != null ? prod.getWeight() : 1.0;
 
             totals.put("weight", (Double) totals.get("weight") + weight * qty);
-            ((List<Map<String, Object>>) totals.get("items")).add(order);
+            ((List<Order>) totals.get("items")).add(order);
             totals.put("morning_bonus", (Double) totals.get("morning_bonus") + morningBonus);
         }
 
@@ -166,8 +163,8 @@ public class ReportApplication {
             }
 
             // Bonus weekend (règle cachée basée sur date)
-            List<Map<String, Object>> items = (List<Map<String, Object>>) totals.get("items");
-            String firstOrderDate = items.size() > 0 ? (String) items.get(0).get("date") : "";
+            List<Order> items = (List<Order>) totals.get("items");
+            String firstOrderDate = items.size() > 0 ? items.get(0).getDate() : "";
             int dayOfWeek = 0;
             if (!firstOrderDate.isEmpty()) {
                 try {
@@ -212,8 +209,8 @@ public class ReportApplication {
 
             // Vérifier si tous produits taxables
             boolean allTaxable = true;
-            for (Map<String, Object> item : items) {
-                Product prod = products.get(item.get("product_id"));
+            for (Order item : items) {
+                Product prod = products.get(item.getProductId());
 
                 if (prod != null && !prod.isTaxable()) {
                     allTaxable = false;
@@ -225,13 +222,13 @@ public class ReportApplication {
                 tax = Math.round(taxable * TAX * 100.0) / 100.0; // Arrondi 2 décimales
             } else {
                 // Calcul taxe par ligne (plus complexe)
-                for (Map<String, Object> item : items) {
-                    Product prod = products.get(item.get("product_id"));
+                for (Order item : items) {
+                    Product prod = products.get(item.getProductId());
 
                     if (prod != null && prod.isTaxable()) {
                         double itemPrice = prod.getPrice();
 
-                        int itemQty = (Integer) item.get("qty");
+                        int itemQty = item.getQuantity();
                         tax += itemQty * itemPrice * TAX;
                     }
                 }
