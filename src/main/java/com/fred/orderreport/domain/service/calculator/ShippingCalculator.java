@@ -5,13 +5,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+import static com.fred.orderreport.shared.constants.BusinessConstants.*;
+
 /**
  * Calculates shipping costs.
  */
 @Service
 public class ShippingCalculator {
-
-    private static final double SHIPPING_LIMIT = 50;
 
     public double calculate(double subtotal,
                             double weight,
@@ -25,24 +25,22 @@ public class ShippingCalculator {
             ShippingZone shippingZone =
                     shippingZones.getOrDefault(
                             zone,
-                            new ShippingZone(5.0, 0.5)
+                            new ShippingZone(DEFAULT_SHIPPING_BASE, DEFAULT_SHIPPING_PER_KG)
                     );
 
             double baseShipping =
                     shippingZone.getBase();
 
-            if (weight > 10) {
+            if (weight > HEAVY_WEIGHT_THRESHOLD) {
 
                 shipping = baseShipping
-                        + (weight - 10)
+                        + (weight - HEAVY_WEIGHT_THRESHOLD)
                         * shippingZone.getPerKg();
 
-            } else if (weight > 5) {
+            } else if (weight > MEDIUM_WEIGHT_THRESHOLD) {
 
                 // Legacy behavior: intermediate weight tier
-                shipping = baseShipping
-                        + (weight - 5)
-                        * 0.3;
+                shipping = baseShipping + (weight - MEDIUM_WEIGHT_THRESHOLD) * INTERMEDIATE_WEIGHT_RATE;
 
             } else {
                 shipping = baseShipping;
@@ -52,14 +50,14 @@ public class ShippingCalculator {
             if (zone.equals("ZONE3")
                     || zone.equals("ZONE4")) {
 
-                shipping = shipping * 1.2;
+                shipping = shipping * REMOTE_ZONE_SURCHARGE;
             }
 
         } else {
 
             // Legacy behavior: heavy package handling fee
-            if (weight > 20) {
-                shipping = (weight - 20) * 0.25;
+            if (weight > FREE_SHIPPING_WEIGHT_THRESHOLD) {
+                shipping = (weight - FREE_SHIPPING_WEIGHT_THRESHOLD) * HEAVY_PACKAGE_RATE;
             }
         }
 

@@ -2,6 +2,9 @@ package com.fred.orderreport.domain.service.calculator;
 
 import org.springframework.stereotype.Service;
 
+import static com.fred.orderreport.shared.constants.BusinessConstants.MORNING_DISCOUNT_RATE;
+import static com.fred.orderreport.shared.constants.BusinessConstants.MORNING_LIMIT_HOUR;
+
 /**
  * Calculates order line pricing.
  */
@@ -21,11 +24,11 @@ public class OrderPricingCalculator {
 
         int hour = Integer.parseInt(time.split(":")[0]);
 
-        if (hour < 10) {
+        if (hour < MORNING_LIMIT_HOUR) {
 
             // Legacy behavior:
             // extra morning discount
-            return lineTotal * 0.03;
+            return lineTotal * MORNING_DISCOUNT_RATE;
         }
 
         return 0;

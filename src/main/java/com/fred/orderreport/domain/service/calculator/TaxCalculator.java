@@ -6,14 +6,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import static com.fred.orderreport.shared.constants.BusinessConstants.*;
 
 /**
  * Calculates taxes for customer orders.
  */
 @Service
 public class TaxCalculator {
-
-    private static final double TAX = 0.2;
 
     public double calculate(double subtotal,
                             double totalDiscount,
@@ -23,7 +22,7 @@ public class TaxCalculator {
         double taxable = subtotal - totalDiscount;
 
         if (allProductsTaxable(items, products)) {
-            return round(taxable * TAX);
+            return round(taxable * TAX_RATE);
         }
 
         double tax = 0.0;
@@ -37,7 +36,7 @@ public class TaxCalculator {
 
                 tax += item.getQuantity()
                         * product.getPrice()
-                        * TAX;
+                        * TAX_RATE;
             }
         }
 

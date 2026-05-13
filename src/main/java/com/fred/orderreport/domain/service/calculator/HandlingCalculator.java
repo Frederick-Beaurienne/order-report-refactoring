@@ -1,24 +1,22 @@
 package com.fred.orderreport.domain.service.calculator;
 
 import org.springframework.stereotype.Service;
-
+import static com.fred.orderreport.shared.constants.BusinessConstants.*;
 /**
  * Calculates handling fees.
  */
 @Service
 public class HandlingCalculator {
 
-    private static final double HANDLING_FEE = 2.5;
-
     public double calculate(int itemCount) {
 
         double handling = 0.0;
 
-        if (itemCount > 10) {
+        if (itemCount > MEDIUM_ORDER_THRESHOLD) {
             handling = HANDLING_FEE;
         }
 
-        if (itemCount > 20) {
+        if (itemCount > LARGE_ORDER_THRESHOLD) {
             // Legacy behavior: doubled fee for large orders
             handling = HANDLING_FEE * 2;
         }

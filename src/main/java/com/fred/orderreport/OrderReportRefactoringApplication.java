@@ -1,6 +1,6 @@
 package com.fred.orderreport;
 
-import com.fred.orderreport.legacyintegration.ReportApplication;
+import com.fred.orderreport.orchestration.ReportGenerationService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -13,10 +13,10 @@ public class OrderReportRefactoringApplication {
         ConfigurableApplicationContext context =
                 SpringApplication.run(OrderReportRefactoringApplication.class, args);
 
-        ReportApplication reportApplication =
-                context.getBean(ReportApplication.class);
+        ReportGenerationService reportGenerationService =
+                context.getBean(ReportGenerationService.class);
 
-        reportApplication.run();
+        reportGenerationService.run();
     }
 
 }

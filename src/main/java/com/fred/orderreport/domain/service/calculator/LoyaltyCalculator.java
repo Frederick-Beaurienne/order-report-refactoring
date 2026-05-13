@@ -6,14 +6,13 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import static com.fred.orderreport.shared.constants.BusinessConstants.*;
 
 /**
  * Calculates customer loyalty points from orders.
  */
 @Service
 public class LoyaltyCalculator {
-
-    private static final double LOYALTY_RATIO = 0.01;
 
     public Map<String, Double> calculate(List<Order> orders) {
 
