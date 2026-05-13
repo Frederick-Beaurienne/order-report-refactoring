@@ -1,10 +1,7 @@
 package com.fred.orderreport.legacyintegration;
 
 import com.fred.orderreport.domain.model.*;
-import com.fred.orderreport.domain.service.DiscountCalculator;
-import com.fred.orderreport.domain.service.LoyaltyCalculator;
-import com.fred.orderreport.domain.service.ShippingCalculator;
-import com.fred.orderreport.domain.service.TaxCalculator;
+import com.fred.orderreport.domain.service.*;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -34,6 +31,8 @@ public class ReportApplication {
     private final DiscountCalculator discountCalculator;
     private final TaxCalculator taxCalculator;
     private final ShippingCalculator shippingCalculator;
+    private final HandlingCalculator handlingCalculator;
+    private final CurrencyConverter currencyConverter;
 
     // Constantes globales mal organisées (mélange styles)
     private static final double TAX = 0.2;
@@ -188,22 +187,12 @@ public class ReportApplication {
             );
 
             // Frais de gestion (magic number + condition cachée)
-            double handling = 0.0;
             int itemCount = items.size();
-            if (itemCount > 10) {
-                handling = handling_fee;
-            }
-            if (itemCount > 20) {
-                handling = handling_fee * 2; // double pour grosses commandes
-            }
+
+            double handling = handlingCalculator.calculate(itemCount);
 
             // Conversion devise (règle cachée pour non-EUR)
-            double currencyRate = 1.0;
-            if (currency.equals("USD")) {
-                currencyRate = 1.1;
-            } else if (currency.equals("GBP")) {
-                currencyRate = 0.85;
-            }
+            double currencyRate = currencyConverter.getRate(currency);
 
             double total = Math.round((taxable + tax + ship + handling) * currencyRate * 100.0) / 100.0;
             grandTotal += total;
