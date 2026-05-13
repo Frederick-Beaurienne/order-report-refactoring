@@ -1,5 +1,6 @@
 package com.fred.orderreport.legacyintegration;
 
+import com.fred.orderreport.domain.model.Customer;
 import com.fred.orderreport.domain.model.Product;
 import com.fred.orderreport.infrastructure.csv.*;
 import com.google.gson.Gson;
@@ -45,7 +46,7 @@ public class ReportApplication {
         Path promoPath = getResourcePath("data/promotions.csv");
 
         // Lecture customers
-        Map<String, Map<String, String>> customers =
+        Map<String, Customer> customers =
                 customerCsvParser.parse(custPath);
 
         // Lecture products
@@ -81,9 +82,7 @@ public class ReportApplication {
 
             // Récupération produit avec fallback
             Product prod = products.get(order.get("product_id"));
-            double basePrice = prod != null
-                    ? prod.getPrice()
-                    : (Double) order.get("unit_price");
+            double basePrice = prod != null ? prod.getPrice() : (Double) order.get("unit_price");
 
             // Application promo (logique complexe et bugguée)
             String promoCode = (String) order.get("promo_code");
@@ -127,9 +126,8 @@ public class ReportApplication {
 
             Map<String, Object> totals = totalsByCustomer.get(cid);
             totals.put("subtotal", (Double) totals.get("subtotal") + lineTotal);
-            double weight = prod != null
-                    ? prod.getWeight()
-                    : 1.0;
+            double weight = prod != null ? prod.getWeight() : 1.0;
+
             totals.put("weight", (Double) totals.get("weight") + weight * qty);
             ((List<Map<String, Object>>) totals.get("items")).add(order);
             totals.put("morning_bonus", (Double) totals.get("morning_bonus") + morningBonus);
@@ -146,11 +144,11 @@ public class ReportApplication {
         Collections.sort(sortedCustomerIds);
 
         for (String cid : sortedCustomerIds) {
-            Map<String, String> cust = customers.getOrDefault(cid, new HashMap<>());
-            String name = cust.getOrDefault("name", "Unknown");
-            String level = cust.getOrDefault("level", "BASIC");
-            String zone = cust.getOrDefault("shipping_zone", "ZONE1");
-            String currency = cust.getOrDefault("currency", "EUR");
+            Customer cust = customers.get(cid);
+            String name = cust != null ? cust.getName() : "Unknown";
+            String level = cust != null ? cust.getLevel() : "BASIC";
+            String zone = cust != null ? cust.getShippingZone() : "ZONE1";
+            String currency = cust != null ? cust.getCurrency() : "EUR";
 
             Map<String, Object> totals = totalsByCustomer.get(cid);
             double sub = (Double) totals.get("subtotal");

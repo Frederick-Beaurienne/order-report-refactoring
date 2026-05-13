@@ -1,5 +1,6 @@
 package com.fred.orderreport.infrastructure.csv;
 
+import com.fred.orderreport.domain.model.Customer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,9 +19,9 @@ public class CustomerCsvParser {
 
     private final CsvFileReader csvFileReader;
 
-    public Map<String, Map<String, String>> parse(Path customerPath) throws IOException {
+    public Map<String, Customer> parse(Path customerPath) throws IOException {
 
-        Map<String, Map<String, String>> customers = new HashMap<>();
+        Map<String, Customer> customers = new HashMap<>();
 
         List<String> lines  = csvFileReader.readDataLines(customerPath);
 
@@ -30,13 +31,13 @@ public class CustomerCsvParser {
 
                 String[] parts = line.split(",");
 
-                Map<String, String> customer = new HashMap<>();
-
-                customer.put("id", parts[0]);
-                customer.put("name", parts[1]);
-                customer.put("level", parts.length > 2 ? parts[2] : "BASIC");
-                customer.put("shipping_zone", parts.length > 3 ? parts[3] : "ZONE1");
-                customer.put("currency", parts.length > 4 ? parts[4] : "EUR");
+                Customer customer = new Customer(
+                        parts[0],
+                        parts[1],
+                        parts.length > 2 ? parts[2] : "BASIC",
+                        parts.length > 3 ? parts[3] : "ZONE1",
+                        parts.length > 4 ? parts[4] : "EUR"
+                );
 
                 customers.put(parts[0], customer);
 
